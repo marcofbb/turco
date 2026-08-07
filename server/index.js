@@ -20,6 +20,8 @@ import {
   handleAction,
   handleAdvance,
   handleRematch,
+  setMic,
+  relaySignal,
   newPlayerId,
 } from './rooms.js';
 
@@ -168,6 +170,24 @@ attachWebSocket(server, (ws) => {
         const result = handleRematch(room);
         if (result.error) return fail(result.error);
         broadcast(room);
+        return;
+      }
+
+      // ── audio entre jugadores
+      case 'voice': {
+        if (isTv) return fail('La tele no participa del audio.');
+        if (!room || !playerId) return fail('No estás en una sala.');
+        const result = setMic(room, playerId, msg.on);
+        if (result.error) return fail(result.error);
+        broadcast(room);
+        return;
+      }
+
+      case 'rtc': {
+        if (isTv) return fail('La tele no participa del audio.');
+        if (!room || !playerId) return;
+        // Sin broadcast: la señalización es punto a punto.
+        relaySignal(room, playerId, msg.to, msg.data);
         return;
       }
 

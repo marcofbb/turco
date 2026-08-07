@@ -94,6 +94,27 @@ respuesta a un canto: *"No quiero, muestro los tantos"*.
 - Puede **pedirle permiso** a cada jugador para ver sus cartas. El dueño decide.
 - El permiso vale **sólo por esa ronda**.
 
+### Hablar por micrófono 🎙️
+
+Los tres de la sala pueden hablar entre ellos, incluido el que mira.
+
+- Cada uno prende y apaga **su** micrófono con 🎙️.
+- Con 🎧 te silenciás las voces de los demás **sin perder el sonido del juego**.
+- Se ve quién tiene el micrófono abierto y quién está hablando.
+- Las teles no hablan ni escuchan: son pantallas.
+
+El audio va **directo entre los jugadores** (WebRTC en malla); el servidor sólo pasa la
+señalización y nunca ve ni escucha el audio.
+
+> [!IMPORTANT]
+> **El micrófono necesita HTTPS.** Funciona en `localhost` y en el deploy de Render, pero
+> **no** cuando juegan por IP de red local (`http://192.168.x.x`): los navegadores no dan
+> acceso al micrófono en contextos inseguros. La app lo detecta y lo avisa en pantalla.
+>
+> Además, sin servidor TURN algunas redes muy cerradas (NAT simétrico, wifi corporativo)
+> no van a poder establecer la conexión de audio. El juego sigue funcionando igual: sólo
+> se cae la voz.
+
 ### Modo tele 📺
 
 Cada sala genera un **segundo código** para poner la partida en una pantalla grande.
@@ -160,12 +181,13 @@ server/
   game.js     el motor de reglas — toda la lógica vive acá
   deck.js     mazo español, jerarquía y tanto
 public/
-  index.html · css/styles.css · js/{app,cards,sound}.js
+  index.html · css/styles.css · js/{app,cards,sound,voice}.js
   cards/      las 40 cartas en WebP
   sw.js       service worker · manifest.webmanifest
 test/
   engine.test.js   61 pruebas del motor (reglas, privacidad, simulación)
   privacy.e2e.js   15 pruebas de privacidad contra el servidor real
+  voz.e2e.js        9 pruebas de señalización de audio y exclusión de la tele
   partida.e2e.js   20 pruebas de partida completa, reconexión y revancha
 scripts/
   make-icons.js    genera los PNG del PWA sin librerías de imagen
@@ -197,7 +219,7 @@ npm run test:e2e  # end-to-end (necesita el servidor corriendo)
 npm run balance   # simula partidas y mide el balance del juego
 ```
 
-96 pruebas en total. Las del motor incluyen 200 partidas completas jugadas al azar,
+105 pruebas en total. Las del motor incluyen 200 partidas completas jugadas al azar,
 verificando en cada cierre de ronda que no se filtre ninguna carta que no corresponda.
 
 ---

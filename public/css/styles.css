@@ -489,3 +489,27 @@ input::placeholder { color: rgba(157, 179, 168, .55); }
   border: 1px solid rgba(59, 130, 246, .55);
   color: #cfe0fb;
 }
+
+/* ─────────────────────────── audio entre jugadores ─────────────────────────── */
+
+.fab.is-on { background: rgba(74, 222, 128, .2); border-color: rgba(74, 222, 128, .5); color: #b6f3cd; }
+.fab.is-off { background: rgba(239, 83, 80, .18); border-color: rgba(239, 83, 80, .4); color: #ffb4b1; }
+.fab.is-talking {
+  border-color: var(--ok);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, .28);
+}
+
+.voicebar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.voicebar .btn.is-on { background: rgba(74, 222, 128, .16); border-color: rgba(74, 222, 128, .4); color: #b6f3cd; }
+.voicebar .btn.is-off { background: rgba(239, 83, 80, .16); border-color: rgba(239, 83, 80, .35); color: #ffb4b1; }
+.voice-note { font-size: 12px; color: #ffb4b1; line-height: 1.4; }
+.voice-note[hidden] { display: none; }
+
+/* Indicador de micrófono en el marcador */
+.pscore .mic {
+  position: absolute; right: 3px; bottom: 2px;
+  font-size: 9px; line-height: 1; opacity: .75;
+}
+.pscore.is-talking { border-color: var(--ok); box-shadow: 0 0 0 2px rgba(74, 222, 128, .3); }
+.lobby__members .mic { margin-left: auto; font-size: 13px; }
+.lobby__members li.is-talking { border-color: var(--ok); }

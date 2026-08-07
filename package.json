@@ -8,7 +8,7 @@
     "start": "node server/index.js",
     "dev": "node server/index.js",
     "test": "node test/engine.test.js",
-    "test:e2e": "node test/privacy.e2e.js && node test/partida.e2e.js",
+    "test:e2e": "node test/privacy.e2e.js && node test/voz.e2e.js && node test/partida.e2e.js",
     "icons": "node scripts/make-icons.js",
     "balance": "node scripts/balance.js"
   },

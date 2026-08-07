@@ -91,6 +91,7 @@ export function joinRoom(room, { playerId, name, socket }) {
     name: sanitizeName(name, `Jugador ${room.members.length + 1}`),
     socket,
     connected: true,
+    mic: false, // audio entre jugadores
   };
   room.members.push(member);
 
@@ -107,6 +108,7 @@ export function leaveRoom(room, socket) {
   if (!member) return null;
   member.socket = null;
   member.connected = false;
+  member.mic = false;
   room.touchedAt = Date.now();
 
   // Si nadie llegó a jugar todavía, liberamos el asiento para que entre otro.
@@ -125,7 +127,11 @@ export function roomState(room, playerId, opts = {}) {
     tvCode: isTv ? null : room.tvCode,
     viewers: room.viewers.size,
     you: { id: playerId, isTv },
-    members: room.members.map((m) => ({ id: m.id, name: m.name, connected: m.connected })),
+    members: room.members.map((m) => ({
+      id: m.id, name: m.name, connected: m.connected, mic: !!m.mic,
+    })),
+    // La tele no participa del audio, pero sí puede mostrar quién está hablando.
+    voice: Object.fromEntries(room.members.map((m) => [m.id, !!m.mic])),
   };
 
   if (!room.match) {
@@ -148,6 +154,27 @@ export function broadcast(room) {
   for (const socket of room.viewers) {
     socket.send(roomState(room, null, { tv: true }));
   }
+}
+
+/** Marca si un jugador abrió o cerró su micrófono. */
+export function setMic(room, playerId, on) {
+  const member = room.members.find((m) => m.id === playerId);
+  if (!member) return { error: 'No estás en la sala.' };
+  member.mic = !!on;
+  return { ok: true };
+}
+
+/**
+ * Reenvía señalización WebRTC a otro jugador de la sala.
+ * Sólo entre miembros: las teles nunca reciben ni mandan.
+ */
+export function relaySignal(room, fromId, toId, data) {
+  const from = room.members.find((m) => m.id === fromId);
+  if (!from) return { error: 'No estás en la sala.' };
+  const target = room.members.find((m) => m.id === toId);
+  if (!target?.socket || !target.connected) return { error: 'Ese jugador no está conectado.' };
+  target.socket.send({ type: 'rtc', from: fromId, data });
+  return { ok: true };
 }
 
 export function handleAction(room, playerId, action) {

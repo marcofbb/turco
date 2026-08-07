@@ -2,6 +2,7 @@
 
 import { cardHtml } from './cards.js';
 import { sound } from './sound.js';
+import { voice } from './voice.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -68,6 +69,10 @@ function handleMessage(msg) {
     history.replaceState(null, '', `/${msg.code}`);
     return;
   }
+  if (msg.type === 'rtc') {
+    voice.handleSignal(msg.from, msg.data);
+    return;
+  }
   if (msg.type === 'error') {
     if (!view) showHomeError(msg.message);
     else toast(msg.message);
@@ -77,6 +82,7 @@ function handleMessage(msg) {
     const previous = view;
     view = msg;
     ui.envidoOpen = false;
+    syncVoice(msg);
     render();
     playSoundsFor(previous, msg);
   }
@@ -122,6 +128,65 @@ function playSoundsFor(prev, next) {
   if (next.phase === 'gameEnd' && prev?.phase !== 'gameEnd') {
     setTimeout(() => sound.play(next.gameOver?.magistral ? 'magistral' : 'gameWin'), 260);
   }
+}
+
+// ═══════════════════════════════ audio entre jugadores ═══════════════════════════════
+
+let voiceReady = false;
+
+/** Mantiene las conexiones de voz al día con los miembros de la sala. */
+function syncVoice(state) {
+  if (state.you?.isTv) return; // la tele no habla ni escucha
+
+  if (!voiceReady && state.you?.id) {
+    voice.init({ send, myId: state.you.id, onChange: renderVoice });
+    voiceReady = true;
+  }
+  if (!voiceReady) return;
+
+  voice.syncPeers((state.members ?? []).map((m) => m.id));
+  renderVoice();
+}
+
+/** Pinta los botones de micrófono y auriculares en las dos pantallas. */
+function renderVoice() {
+  const esTele = view?.you?.isTv;
+
+  for (const el of document.querySelectorAll('[data-voice="mic"]')) {
+    el.classList.toggle('is-on', voice.micOn);
+    el.classList.toggle('is-off', !voice.micOn);
+    el.classList.toggle('is-talking', voice.micOn && voice.level('me') > 0.12);
+    el.hidden = !!esTele;
+    if (el.classList.contains('btn')) {
+      el.textContent = voice.micOn ? '🎙️ Micrófono abierto' : '🎙️ Micrófono cerrado';
+    } else {
+      el.textContent = voice.micOn ? '🎙️' : '🔇';
+    }
+  }
+
+  for (const el of document.querySelectorAll('[data-voice="deafen"]')) {
+    el.classList.toggle('is-off', voice.deafened);
+    el.classList.toggle('is-on', !voice.deafened);
+    el.hidden = !!esTele;
+    if (el.classList.contains('btn')) {
+      el.textContent = voice.deafened ? '🔕 No escuchás a nadie' : '🎧 Escuchás a todos';
+    } else {
+      el.textContent = voice.deafened ? '🔕' : '🎧';
+    }
+  }
+
+  const nota = $('#voice-note');
+  if (nota) {
+    const msg = voice.error ?? (!voice.supported && !esTele
+      ? 'El micrófono necesita HTTPS. Por red local (http://) no está disponible.'
+      : null);
+    nota.textContent = msg ?? '';
+    nota.hidden = !msg;
+  }
+
+  // Repintamos sólo lo que existe: en el lobby todavía no hay marcador.
+  if (view?.players) renderScoreboard();
+  if (view?.phase === 'lobby') renderLobby();
 }
 
 // ═══════════════════════════════ helpers ═══════════════════════════════
@@ -250,9 +315,12 @@ function renderLobby() {
 
   for (const m of view.members) {
     const li = document.createElement('li');
+    const hablando = m.mic && (m.id === view.you.id ? voice.level('me') : voice.level(m.id)) > 0.12;
+    if (hablando) li.classList.add('is-talking');
     li.innerHTML = `<span class="dot ${m.connected ? '' : 'off'}"></span>
       <span>${escapeHtml(m.name)}</span>
-      ${m.id === view.you.id ? '<span class="muted" style="margin-left:auto;font-size:12px">vos</span>' : ''}`;
+      ${m.id === view.you.id ? '<span class="muted" style="font-size:12px">vos</span>' : ''}
+      <span class="mic">${m.mic ? '🎙️' : ''}</span>`;
     list.appendChild(li);
   }
   for (let i = view.members.length; i < 3; i++) {
@@ -283,10 +351,13 @@ function renderScoreboard() {
       ? (view.round && view.seats[view.round.manoIdx] === p.id ? 'Mano' : 'Juega')
       : 'Mira';
     const crown = p.neverLost && p.score > 0 ? ' ★' : '';
-    return `<div class="${cls}">
+    const micAbierto = view.voice?.[p.id];
+    const hablando = micAbierto && (isYou ? voice.level('me') : voice.level(p.id)) > 0.12;
+    return `<div class="${cls}${hablando ? ' is-talking' : ''}">
       <span class="tag">${tag}</span>
       <div class="nm">${escapeHtml(p.name)}${isYou ? ' (vos)' : ''}${crown}</div>
       <div class="pts">${p.score}</div>
+      ${micAbierto ? '<span class="mic">🎙️</span>' : ''}
     </div>`;
   });
 
@@ -718,6 +789,14 @@ document.addEventListener('click', (ev) => {
     return;
   }
 
+  const voiceEl = ev.target.closest('[data-voice]');
+  if (voiceEl) {
+    if (voiceEl.dataset.voice === 'mic') voice.toggleMic().then(renderVoice);
+    else { const off = voice.toggleDeafen(); toast(off ? 'Micrófonos silenciados' : 'Escuchás a los demás', 1400); }
+    renderVoice();
+    return;
+  }
+
   const actEl = ev.target.closest('[data-act]');
   if (actEl) {
     ui.envidoOpen = false;
@@ -770,6 +849,8 @@ $('#btn-share').addEventListener('click', async () => {
 });
 
 $('#btn-leave').addEventListener('click', () => {
+  voice.stop();
+  voiceReady = false;
   pendingJoin = null;
   view = null;
   history.replaceState(null, '', '/');

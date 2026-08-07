@@ -67,6 +67,12 @@
       <span class="tvbox__hint">Con este código se ve la mesa y el marcador, nunca las manos.</span>
     </div>
 
+    <div class="voicebar">
+      <button class="btn btn--ghost" data-voice="mic">🎙️ Micrófono</button>
+      <button class="btn btn--ghost" data-voice="deafen">🎧 Escuchar</button>
+    </div>
+    <p id="voice-note" class="voice-note" hidden></p>
+
     <button id="btn-leave" class="linkish">Salir</button>
   </div>
 </section>
@@ -91,6 +97,8 @@
   <footer id="actionbar" class="actionbar"></footer>
 
   <div class="fabs">
+    <button class="fab" data-voice="mic" aria-label="Mi micrófono">🎙️</button>
+    <button class="fab" data-voice="deafen" aria-label="Escuchar a los demás">🎧</button>
     <button id="btn-sound" class="fab" aria-label="Cambiar sonido">🔊</button>
     <button id="btn-rules-game" class="fab" aria-label="Ver reglas">?</button>
   </div>
@@ -146,6 +154,14 @@
       <li>De entrada <strong>no ve ninguna mano</strong>: sólo lo que está sobre la mesa.</li>
       <li>Puede <strong>pedirle permiso</strong> a cada jugador para ver sus cartas. El dueño decide.</li>
       <li>El permiso vale <strong>sólo por esa ronda</strong>.</li>
+    </ul>
+
+    <h3>Hablar</h3>
+    <ul>
+      <li>Los tres de la sala pueden <strong>hablar por micrófono</strong>, incluido el que mira.</li>
+      <li>Cada uno prende y apaga <strong>su</strong> micrófono con 🎙️.</li>
+      <li>Con 🎧 te silenciás las voces de los demás sin perder el sonido del juego.</li>
+      <li>Las teles no hablan ni escuchan: son pantallas.</li>
     </ul>
 
     <h3>Modo tele</h3>
