@@ -9,7 +9,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#06211a",
-  "theme_color": "#0a2a20",
+  "theme_color": "#06211a",
   "categories": ["games"],
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
