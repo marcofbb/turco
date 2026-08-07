@@ -83,6 +83,7 @@ export function createMatch(players) {
     round: null,
     draw: null,
     lastOutcome: null,
+    nextReady: [], // quiénes ya aceptaron pasar a la ronda siguiente
     gameOver: null,
   };
   runDraw(match);
@@ -351,6 +352,9 @@ function answer(match, idx, quiero) {
     if (quiero) {
       truco.accepted = true;
       truco.accepterIdx = idx;
+      // "El envido va primero" sólo vale mientras el truco está sin responder.
+      // Si lo quisiste sin cantar envido, la ventana del envido se cerró.
+      round.envido.closed = true;
       return { ok: true };
     }
     return finishRound(match, {
@@ -592,18 +596,36 @@ function finishRound(match, { trucoWinner, trucoPoints, trucoReason }) {
     };
   } else {
     match.phase = 'roundEnd';
+    match.nextReady = [];
   }
 
   return { ok: true, roundFinished: true };
 }
 
-/** Arranca la partida tras el sorteo, o prepara la siguiente ronda rotando sillas y mano. */
-export function advance(match) {
+/**
+ * Arranca la partida tras el sorteo, o prepara la siguiente ronda.
+ * Al cerrar una ronda hacen falta los dos que jugaron: `playerId` marca a uno y
+ * la ronda avanza recién cuando están los dos (o cuando el otro se desconectó).
+ */
+export function advance(match, playerId = null, connected = null) {
   if (match.phase === 'draw') {
     startRound(match);
     return { ok: true };
   }
   if (match.phase !== 'roundEnd') return { error: 'La ronda todavía no terminó.' };
+
+  if (playerId) {
+    const jugaron = match.lastOutcome?.seats ?? match.seats;
+    if (!jugaron.includes(playerId)) return { error: 'Sólo confirman los que jugaron la ronda.' };
+    if (!match.nextReady.includes(playerId)) match.nextReady.push(playerId);
+
+    // Si alguien se cayó, no bloqueamos la mesa esperándolo.
+    const faltan = jugaron.filter(
+      (id) => !match.nextReady.includes(id) && (connected ? connected(id) : true),
+    );
+    if (faltan.length) return { ok: true, waiting: faltan };
+  }
+  match.nextReady = [];
   const out = match.lastOutcome;
 
   if (out.tie) {
@@ -684,6 +706,7 @@ export function viewFor(match, playerId, opts = {}) {
     })),
     gameOver: match.gameOver,
     draw: match.draw,
+    nextReady: match.nextReady ?? [],
     outcome:
       match.phase === 'roundEnd' || match.phase === 'gameEnd'
         ? outcomeFor(match, playerId, isTv)

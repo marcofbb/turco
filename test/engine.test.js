@@ -486,6 +486,103 @@ t('las cartas no jugadas van después de las tiradas', () => {
   assert.equal(o.hands[0][0].id, primera, 'la carta tirada queda primera');
 });
 
+t('querer el truco cierra la ventana del envido', () => {
+  const m = mkMatch();
+  act(m, 0, 'TRUCO');
+  assert.ok(legalActions(m, 1).includes('ENVIDO'), 'antes de contestar, el envido está primero');
+  act(m, 1, 'QUIERO');
+  assert.ok(!legalActions(m, 1).includes('ENVIDO'), 'quien quiso ya no puede cantarlo');
+  act(m, 0, 'PLAY', { cardIndex: 0 });
+  assert.ok(!legalActions(m, 1).includes('ENVIDO'), 'el otro tampoco');
+  assert.equal(m.round.envido.closed, true);
+});
+
+t('el envido sigue vivo si el truco no se contestó', () => {
+  const m = mkMatch();
+  act(m, 0, 'TRUCO');
+  const legal = legalActions(m, 1);
+  assert.ok(legal.includes('ENVIDO'));
+  assert.ok(legal.includes('REAL_ENVIDO'), 'también el real envido está primero');
+  assert.ok(legal.includes('FALTA_ENVIDO'));
+});
+
+t('tras resolver el envido primero, el truco sigue pendiente', () => {
+  const m = mkMatch();
+  act(m, 0, 'TRUCO');
+  act(m, 1, 'REAL_ENVIDO');   // "el real envido está primero"
+  act(m, 0, 'QUIERO');
+  assert.equal(m.round.envido.accepted, true);
+  assert.equal(m.round.truco.pending, 1, 'ahora sí hay que contestar el truco');
+  act(m, 1, 'QUIERO');
+  assert.equal(m.round.truco.accepted, true);
+});
+
+// ───────────────────────── pasar de ronda entre los dos ─────────────────────────
+console.log('\nPasar de ronda');
+
+t('hacen falta los dos para pasar de ronda', () => {
+  const m = mkMatch();
+  const a = m.seats[0], b = m.seats[1];
+  act(m, 0, 'TRUCO'); act(m, 1, 'NO_QUIERO');
+  assert.equal(m.phase, 'roundEnd');
+
+  let r = advance(m, a);
+  assert.ok(!r.error);
+  assert.equal(m.phase, 'roundEnd', 'con uno solo no arranca');
+  assert.deepEqual(r.waiting, [b], 'dice a quién se espera');
+  assert.deepEqual(m.nextReady, [a]);
+
+  r = advance(m, b);
+  assert.ok(!r.error);
+  assert.equal(m.phase, 'playing', 'con los dos, arranca');
+  assert.deepEqual(m.nextReady, [], 'se limpia para la próxima');
+});
+
+t('confirmar dos veces no cuenta doble', () => {
+  const m = mkMatch();
+  const a = m.seats[0];
+  act(m, 0, 'TRUCO'); act(m, 1, 'NO_QUIERO');
+  advance(m, a); advance(m, a); advance(m, a);
+  assert.equal(m.phase, 'roundEnd', 'sigue esperando al otro');
+  assert.deepEqual(m.nextReady, [a]);
+});
+
+t('el que mira no confirma', () => {
+  const m = mkMatch();
+  act(m, 0, 'TRUCO'); act(m, 1, 'NO_QUIERO');
+  const r = advance(m, m.spectator);
+  assert.match(r.error, /los que jugaron/);
+  assert.equal(m.phase, 'roundEnd');
+});
+
+t('si uno se desconecta, el otro puede seguir solo', () => {
+  const m = mkMatch();
+  const a = m.seats[0], b = m.seats[1];
+  act(m, 0, 'TRUCO'); act(m, 1, 'NO_QUIERO');
+  const conectado = (id) => id !== b; // b se cayó
+  const r = advance(m, a, conectado);
+  assert.ok(!r.error);
+  assert.equal(m.phase, 'playing', 'no se traba la mesa esperando a quien no está');
+});
+
+t('en empate también hacen falta los dos', () => {
+  const m = mkMatch();
+  act(m, 0, 'ENVIDO'); act(m, 1, 'NO_QUIERO');
+  act(m, 0, 'PLAY', { cardIndex: 0 });
+  act(m, 1, 'TRUCO'); act(m, 0, 'NO_QUIERO');
+  assert.equal(m.lastOutcome.tie, true);
+  advance(m, m.seats[0]);
+  assert.equal(m.phase, 'roundEnd');
+  advance(m, m.seats[1]);
+  assert.equal(m.phase, 'playing');
+});
+
+t('desde el sorteo alcanza con uno', () => {
+  const m = createMatch(P);
+  advance(m);           // sin playerId: el sorteo lo destraba cualquiera
+  assert.equal(m.phase, 'playing');
+});
+
 // ───────────────────────── mostrar los tantos ─────────────────────────
 console.log('\nMostrar los tantos');
 
@@ -633,6 +730,9 @@ t('200 partidas aleatorias terminan sin romperse', () => {
     while (m.phase !== 'gameEnd' && guard++ < 4000) {
       if (m.phase === 'roundEnd') {
         if (m.lastOutcome.pacto) pactos++; else revelados++;
+        // Ahora pasar de ronda necesita el OK de los dos.
+        advance(m, m.lastOutcome.seats[0]);
+        assert.equal(m.phase, 'roundEnd', 'con uno solo no debería avanzar');
         // Nunca se puede filtrar una carta que no corresponde.
         for (const seat of [0, 1]) {
           const jugadas = m.round.hands[seat].map((s) => s.played);
@@ -643,7 +743,7 @@ t('200 partidas aleatorias terminan sin romperse', () => {
             }
           });
         }
-        advance(m);
+        advance(m, m.lastOutcome.seats[1]);
         continue;
       }
       const idx = m.round.envido.pending ?? m.round.truco.pending ?? m.round.turn;

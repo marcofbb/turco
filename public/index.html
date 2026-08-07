@@ -92,6 +92,11 @@
     </div>
 
     <div id="seat-bottom" class="seat seat--bottom"></div>
+
+    <!-- Burbujas de los cantos y pedido de permiso, flotando sobre la mesa -->
+    <div id="bubble-top" class="bubble bubble--top" hidden></div>
+    <div id="bubble-bottom" class="bubble bubble--bottom" hidden></div>
+    <div id="peek-ask" class="peek-ask" hidden></div>
   </div>
 
   <footer id="actionbar" class="actionbar"></footer>
@@ -153,7 +158,8 @@
     <ul>
       <li>De entrada <strong>no ve ninguna mano</strong>: sólo lo que está sobre la mesa.</li>
       <li>Puede <strong>pedirle permiso</strong> a cada jugador para ver sus cartas. El dueño decide.</li>
-      <li>El permiso vale <strong>sólo por esa ronda</strong>.</li>
+      <li>El permiso vale <strong>sólo por esa ronda</strong>. El pedido aparece al costado, así el
+          dueño de las cartas puede seguir jugando mientras decide.</li>
     </ul>
 
     <h3>Hablar</h3>
@@ -174,6 +180,8 @@
     <h3>El envido es a ciegas</h3>
     <ul>
       <li>Cantás envido sin decir el tanto. Se responde quiero o no quiero sin saber.</li>
+      <li>Si te cantan truco en la primera y todavía no hubo envido, podés contestar
+          <strong>"el envido está primero"</strong>. Pero si querés el truco, la ventana del envido se cierra.</li>
       <li>Los tantos se revelan <strong>recién al terminar la ronda</strong>.</li>
       <li>Falta Envido vale <strong>4</strong>. Envido 2 · Envido Envido 4 · Real Envido 3 · Envido + Real 5.</li>
       <li>Si el envido se quiso, cualquiera de los dos puede <strong>mostrar los tantos</strong> y cortar ahí:
@@ -191,6 +199,13 @@
       <li>Si empatan en puntos, se vuelve a dar <strong>entre esos mismos dos</strong> y queda 1 punto en el pozo.</li>
       <li>Cada empate suma 1 al pozo, hasta un máximo de <strong>5</strong>.</li>
       <li>El que corta la racha se lleva todo el pozo. En las redadas la mano alterna.</li>
+    </ul>
+
+    <h3>Pasar de ronda</h3>
+    <ul>
+      <li>Al terminar una ronda <strong>los dos que jugaron</strong> tienen que aceptar para seguir,
+          tanto si hubo ganador como si fue empate.</li>
+      <li>Si uno se desconecta, el otro puede seguir sin esperarlo.</li>
     </ul>
 
     <h3>Ganar</h3>

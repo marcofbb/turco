@@ -52,6 +52,18 @@ class C {
 const settle = (ms = 110) => new Promise((r) => setTimeout(r, ms));
 const seatOf = (c) => c.state.you.seatIdx;
 
+/** Pasar de ronda ahora necesita el OK de los dos que jugaron. */
+async function avanzar(clientes, observador) {
+  const sillas = observador.state.seats;
+  const jugadores = sillas.map((id) => clientes.find((c) => c.id === id)).filter(Boolean);
+  for (const j of jugadores) {
+    const p = observador.nextState();
+    j.send({ type: 'next' });
+    await p;
+    await settle();
+  }
+}
+
 const run = async () => {
   const ana = new C('Ana', 'pv-ana');
   const beto = new C('Beto', 'pv-beto');
@@ -176,7 +188,7 @@ const run = async () => {
 
   // ── el permiso caduca al pasar de ronda
   // Ojo: al rotar las sillas, el que miraba puede pasar a jugar.
-  await ana.next();
+  await avanzar(all, spec);
   await Promise.all(all.map((c) => c.until((s) => s.phase === 'playing', 'ronda nueva')));
   await settle();
   const spec2 = all.find((c) => c.state.you.isSpectator);

@@ -196,7 +196,14 @@ const run = async () => {
   // ── rotación / pozo
   const beforeSeats = ana.state.seats.slice();
   const beforeSpec = ana.state.spectator;
-  ana.send({ type: 'next' });
+  // Pasar de ronda necesita el OK de los dos que jugaron.
+  for (const id of beforeSeats) {
+    const quien = all.find((c) => c.id === id);
+    const p = ana.nextState();
+    quien.send({ type: 'next' });
+    await p;
+    await settle();
+  }
   await ana.until((x) => x.phase === 'playing', 'siguiente ronda');
   await settle();
 
@@ -244,9 +251,15 @@ const run = async () => {
   while (ana.state.phase !== 'gameEnd' && steps++ < 3000) {
     if (ana.state.phase === 'roundEnd') {
       rounds++;
-      const next = ana.nextState();
-      ana.send({ type: 'next' });
-      await next;
+      // Los dos que jugaron tienen que aceptar.
+      for (const id of ana.state.seats) {
+        const quien = live(id);
+        if (!quien) continue;
+        const p = ana.nextState();
+        quien.send({ type: 'next' });
+        await p;
+        await settle();
+      }
       continue;
     }
     await settle();

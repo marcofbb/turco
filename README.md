@@ -47,6 +47,8 @@ Esta es la regla que le da carácter al juego.
 - Cantás envido **sin decir el tanto**. El otro responde quiero o no quiero sin saber
   contra qué juega.
 - Los tantos se revelan **recién al terminar la ronda**.
+- Si te cantan truco en la primera y todavía no hubo envido, podés contestar *"el envido
+  está primero"*. Pero **si querés el truco, la ventana del envido se cierra**.
 
 | Canto                     | Querido | No querido |
 | ------------------------- | :-----: | :--------: |
@@ -114,6 +116,12 @@ señalización y nunca ve ni escucha el audio.
 > Además, sin servidor TURN algunas redes muy cerradas (NAT simétrico, wifi corporativo)
 > no van a poder establecer la conexión de audio. El juego sigue funcionando igual: sólo
 > se cae la voz.
+
+### Pasar de ronda
+
+Al terminar una ronda **los dos que jugaron tienen que aceptar** para seguir, tanto si
+hubo ganador como si fue empate. Se ve quién ya dio el OK y a quién se está esperando. Si
+uno se desconecta, el otro puede seguir sin esperarlo.
 
 ### Modo tele 📺
 
@@ -185,7 +193,7 @@ public/
   cards/      las 40 cartas en WebP
   sw.js       service worker · manifest.webmanifest
 test/
-  engine.test.js   61 pruebas del motor (reglas, privacidad, simulación)
+  engine.test.js   70 pruebas del motor (reglas, privacidad, simulación)
   privacy.e2e.js   15 pruebas de privacidad contra el servidor real
   voz.e2e.js        9 pruebas de señalización de audio y exclusión de la tele
   partida.e2e.js   20 pruebas de partida completa, reconexión y revancha
@@ -219,7 +227,7 @@ npm run test:e2e  # end-to-end (necesita el servidor corriendo)
 npm run balance   # simula partidas y mide el balance del juego
 ```
 
-105 pruebas en total. Las del motor incluyen 200 partidas completas jugadas al azar,
+114 pruebas en total. Las del motor incluyen 200 partidas completas jugadas al azar,
 verificando en cada cierre de ronda que no se filtre ninguna carta que no corresponda.
 
 ---

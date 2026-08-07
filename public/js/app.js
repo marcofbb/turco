@@ -15,6 +15,22 @@ const CALL_NAMES = {
   VALE_CUATRO: 'Vale Cuatro',
   SHOW_TANTOS: 'Mostrar tantos',
 };
+// Lo que "dice" cada jugada en la burbuja, y de qué color sale.
+const BUBBLE = {
+  ENVIDO:            ['¡Envido!',            'envido'],
+  REAL_ENVIDO:       ['¡Real envido!',       'envido'],
+  FALTA_ENVIDO:      ['¡Falta envido!',      'envido'],
+  TRUCO:             ['¡Truco!',             'truco'],
+  RETRUCO:           ['¡Retruco!',           'truco'],
+  VALE_CUATRO:       ['¡Vale cuatro!',       'truco'],
+  QUIERO_ENVIDO:     ['¡Quiero!',            'si'],
+  QUIERO_TRUCO:      ['¡Quiero!',            'si'],
+  NO_QUIERO_ENVIDO:  ['No quiero',           'no'],
+  NO_QUIERO_TRUCO:   ['No quiero',           'no'],
+  MAZO:              ['Me voy al mazo',      'no'],
+  SHOW_TANTOS:       ['¡Muestro los tantos!', 'envido'],
+};
+
 const ENVIDO_CALLS = ['ENVIDO', 'REAL_ENVIDO', 'FALTA_ENVIDO'];
 const TRUCO_CALLS = ['TRUCO', 'RETRUCO', 'VALE_CUATRO'];
 
@@ -99,6 +115,7 @@ function playSoundsFor(prev, next) {
   if (next.phase === 'playing' && next.roundNo !== prev?.roundNo) {
     sound.play('deal');
     ui.lastLogSeq = 0;
+    clearBubbles();
   }
 
   // Cantos y cartas: todo lo que se anotó desde la última vez.
@@ -109,7 +126,11 @@ function playSoundsFor(prev, next) {
     // Si llegaron varias de golpe (reconexión), sólo suena la última.
     const last = fresh[fresh.length - 1];
     if (last.kind === 'PLAY') sound.play('card');
-    else if (last.kind) { sound.play(last.kind); sound.say(last.kind); }
+    else if (last.kind) {
+      sound.play(last.kind);
+      sound.say(last.kind);
+      showBubble(last.who, last.kind);
+    }
   }
 
   // Cierre de ronda.
@@ -127,6 +148,33 @@ function playSoundsFor(prev, next) {
   // Fin de partida.
   if (next.phase === 'gameEnd' && prev?.phase !== 'gameEnd') {
     setTimeout(() => sound.play(next.gameOver?.magistral ? 'magistral' : 'gameWin'), 260);
+  }
+}
+
+/** Burbuja de diálogo del lado del jugador que cantó. */
+function showBubble(seatIdx, kind) {
+  const texto = BUBBLE[kind];
+  if (!texto || seatIdx === null || seatIdx === undefined) return;
+  const { top } = seatOrientation();
+  const el = $(seatIdx === top ? '#bubble-top' : '#bubble-bottom');
+  if (!el) return;
+
+  el.className = `bubble bubble--${seatIdx === top ? 'top' : 'bottom'} bubble--${texto[1]}`;
+  el.textContent = texto[0];
+  el.hidden = false;
+  // Reiniciamos la animación si se encadenan dos cantos.
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+function clearBubbles() {
+  for (const id of ['#bubble-top', '#bubble-bottom']) {
+    const el = $(id);
+    if (el) { clearTimeout(el._t); el.hidden = true; }
   }
 }
 
@@ -425,6 +473,7 @@ function renderTable() {
   renderStakes(r);
   renderTricks(r, top, bottom);
   renderTableMsg(r);
+  renderPeekAsk(r);
 }
 
 function renderStakes(r) {
@@ -533,17 +582,6 @@ function renderActions() {
 
   if (view.you.isSpectator) { renderSpectatorBar(bar, r); return; }
 
-  // Alguien me pidió ver mis cartas: contesto sin perder el turno.
-  if (r.peek?.requested[view.you.seatIdx]) {
-    bar.innerHTML = `
-      <div class="actionbar__prompt">${escapeHtml(playerName(view.spectator))} quiere ver <em>tus cartas</em></div>
-      <div class="actionbar__row">
-        <button class="btn btn--ok" data-act="PEEK_YES">Dejar que las vea</button>
-        <button class="btn btn--danger" data-act="PEEK_NO">No</button>
-      </div>`;
-    return;
-  }
-
   const a = r.actions;
   if (!a.length) {
     bar.innerHTML = `<div class="actionbar__wait">Esperando a ${escapeHtml(
@@ -572,7 +610,12 @@ function renderActions() {
         <button class="btn btn--danger" data-act="NO_QUIERO">No quiero</button>
       </div>
       ${raises.length ? `<div class="actionbar__row">${raises
-        .map((x) => `<button class="btn btn--ghost" data-act="${x}">${CALL_NAMES[x]}</button>`)
+        .map((x) => {
+          // Contestar un truco con envido tiene nombre propio en la mesa.
+          const primero = !answeringEnvido && ENVIDO_CALLS.includes(x);
+          const label = primero ? `${CALL_NAMES[x]} está primero` : CALL_NAMES[x];
+          return `<button class="btn btn--ghost" data-act="${x}">${label}</button>`;
+        })
         .join('')}</div>` : ''}
       ${a.includes('SHOW_TANTOS')
         ? '<div class="actionbar__row"><button class="btn btn--tantos" data-act="SHOW_TANTOS">🃏 No quiero, muestro los tantos</button></div>'
@@ -615,6 +658,25 @@ function renderActions() {
     : '';
 
   bar.innerHTML = `${hint}<div class="actionbar__row">${row.join('')}</div>${tantosRow}`;
+}
+
+/**
+ * Pedido de permiso al costado de la mesa: así no tapa los botones de jugar,
+ * que siguen usables porque contestar no consume el turno.
+ */
+function renderPeekAsk(r) {
+  const el = $('#peek-ask');
+  if (!el) return;
+  const yo = view.you.seatIdx;
+  if (view.you.isTv || yo === -1 || !r.peek?.requested[yo]) { el.hidden = true; return; }
+
+  el.innerHTML = `
+    <div class="peek-ask__txt"><b>${escapeHtml(playerName(view.spectator))}</b> quiere ver tus cartas</div>
+    <div class="peek-ask__row">
+      <button class="btn btn--ok" data-act="PEEK_YES">Sí</button>
+      <button class="btn btn--danger" data-act="PEEK_NO">No</button>
+    </div>`;
+  el.hidden = false;
 }
 
 /** Barra del que mira: pedir permiso a cada jugador para ver su mano. */
@@ -735,9 +797,51 @@ function renderRoundEnd() {
     ${verdict}
   </div>`;
 
-  $('#btn-next').textContent = o.tie ? 'Repartir de nuevo' : 'Siguiente ronda';
-  $('#btn-next').hidden = view.you.isTv; // la tele no maneja la partida
+  renderNextConfirm(o);
   openModal('#modal-round');
+}
+
+/**
+ * Para pasar de ronda tienen que aceptar los dos que jugaron.
+ * Muestra quién ya dio el OK y a quién se está esperando.
+ */
+function renderNextConfirm(o) {
+  const btn = $('#btn-next');
+  const listos = view.nextReady ?? [];
+  const jugaron = o.seats;
+  const soyJugador = jugaron.includes(view.you.id);
+  const yaDije = listos.includes(view.you.id);
+
+  // Marcas de quién aceptó
+  const marcas = jugaron
+    .map((id) => `<span class="ready-mark ${listos.includes(id) ? 'is-ready' : ''}">${
+      listos.includes(id) ? '✓' : '·'} ${escapeHtml(playerName(id))}</span>`)
+    .join('');
+
+  let pie = document.getElementById('next-status');
+  if (!pie) {
+    pie = document.createElement('div');
+    pie.id = 'next-status';
+    btn.parentNode.insertBefore(pie, btn);
+  }
+
+  const faltan = jugaron.filter((id) => !listos.includes(id));
+  pie.innerHTML = `<div class="ready-marks">${marcas}</div>${
+    faltan.length && listos.length
+      ? `<div class="waiting-next">Esperando a <span class="who">${
+          faltan.map((id) => escapeHtml(playerName(id))).join(' y ')}</span>…</div>`
+      : ''}`;
+
+  if (view.you.isTv || !soyJugador) {
+    // La tele y el que mira no deciden: sólo ven a quién se espera.
+    btn.hidden = true;
+    return;
+  }
+  btn.hidden = false;
+  btn.disabled = yaDije;
+  btn.textContent = yaDije
+    ? 'Listo, esperando…'
+    : (o.tie ? 'Repartir de nuevo' : 'Siguiente ronda');
 }
 
 // ─────────────────────────── fin de partida ───────────────────────────

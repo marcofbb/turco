@@ -158,7 +158,7 @@ attachWebSocket(server, (ws) => {
       case 'next': {
         if (isTv) return fail('La tele sólo mira.');
         if (!room) return fail('No estás en una sala.');
-        const result = handleAdvance(room);
+        const result = handleAdvance(room, playerId);
         if (result.error) return fail(result.error);
         broadcast(room);
         return;

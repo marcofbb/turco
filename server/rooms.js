@@ -182,9 +182,10 @@ export function handleAction(room, playerId, action) {
   return applyAction(room.match, playerId, action);
 }
 
-export function handleAdvance(room) {
+export function handleAdvance(room, playerId) {
   if (!room.match) return { error: 'No hay partida.' };
-  return advance(room.match);
+  const estaConectado = (id) => !!room.members.find((m) => m.id === id)?.connected;
+  return advance(room.match, playerId, estaConectado);
 }
 
 export function handleRematch(room) {
