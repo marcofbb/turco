@@ -246,16 +246,19 @@ const run = async () => {
   // ── partida completa hasta 15
   const byId = { [ana.id]: ana, [beto.id]: beto, [caro.id]: caro, [revived.id]: revived };
   const live = (id) => (revived.id === id ? revived : byId[id]);
+  // Ojo: el test de reconexión cerró el socket de uno de estos clientes. Si
+  // seguimos observando por ahí, el bucle espera estados que nunca llegan.
+  const obs = live(ana.id);
   let steps = 0;
   let rounds = 0;
-  while (ana.state.phase !== 'gameEnd' && steps++ < 3000) {
-    if (ana.state.phase === 'roundEnd') {
+  while (obs.state.phase !== 'gameEnd' && steps++ < 3000) {
+    if (obs.state.phase === 'roundEnd') {
       rounds++;
       // Los dos que jugaron tienen que aceptar.
-      for (const id of ana.state.seats) {
+      for (const id of obs.state.seats) {
         const quien = live(id);
         if (!quien) continue;
-        const p = ana.nextState();
+        const p = obs.nextState();
         quien.send({ type: 'next' });
         await p;
         await settle();
@@ -263,16 +266,16 @@ const run = async () => {
       continue;
     }
     await settle();
-    if (ana.state.phase !== 'playing') continue;
-    const idx = ana.state.round.acting;
-    const who = live(ana.state.seats[idx]);
+    if (obs.state.phase !== 'playing') continue;
+    const idx = obs.state.round.acting;
+    const who = live(obs.state.seats[idx]);
     const actions = who.state?.round?.actions ?? [];
     if (!actions.length) continue;
     const type = actions[Math.floor(Math.random() * actions.length)];
     const extra = type === 'PLAY'
       ? { cardIndex: who.state.round.hands[idx].findIndex((h) => !h.played) }
       : {};
-    const next = ana.nextState();
+    const next = obs.nextState();
     who.send({ type: 'action', action: { type, ...extra } });
     try {
       await next;
@@ -280,25 +283,25 @@ const run = async () => {
       console.log(`     [!] se colgó en el paso ${steps}: ${who.name} intentó ${type}`);
       console.log(`         acciones que creía legales: ${JSON.stringify(actions)}`);
       console.log(`         errores de ${who.name}: ${JSON.stringify(who.errors.slice(-3))}`);
-      console.log(`         fase=${ana.state.phase} acting=${ana.state.round?.acting} sillas=${JSON.stringify(ana.state.seats)}`);
+      console.log(`         fase=${obs.state.phase} acting=${obs.state.round?.acting} sillas=${JSON.stringify(obs.state.seats)}`);
       throw e;
     }
   }
-  assert.equal(ana.state.phase, 'gameEnd', 'la partida llega a su fin');
-  const champ = ana.state.players.find((p) => p.id === ana.state.gameOver.winnerId);
+  assert.equal(obs.state.phase, 'gameEnd', 'la partida llega a su fin');
+  const champ = obs.state.players.find((p) => p.id === obs.state.gameOver.winnerId);
   assert.ok(champ.score >= 15, 'el campeón llegó a 15');
-  assert.equal(ana.state.gameOver.magistral, champ.neverLost, 'MAGISTRAL sólo si nunca perdió');
-  ok(`partida completa (${rounds} rondas): gana ${champ.name} con ${champ.score}${ana.state.gameOver.magistral ? ' (MAGISTRAL)' : ''}`);
+  assert.equal(obs.state.gameOver.magistral, champ.neverLost, 'MAGISTRAL sólo si nunca perdió');
+  ok(`partida completa (${rounds} rondas): gana ${champ.name} con ${champ.score}${obs.state.gameOver.magistral ? ' (MAGISTRAL)' : ''}`);
 
   // ── revancha
-  ana.send({ type: 'rematch' });
-  await ana.until((x) => x.phase === 'draw', 'sorteo de revancha');
-  const nx = ana.nextState();
-  ana.send({ type: 'next' });
+  obs.send({ type: 'rematch' });
+  await obs.until((x) => x.phase === 'draw', 'sorteo de revancha');
+  const nx = obs.nextState();
+  obs.send({ type: 'next' });
   await nx;
-  await ana.until((x) => x.phase === 'playing', 'revancha');
-  assert.ok(ana.state.players.every((p) => p.score === 0), 'la revancha arranca 0 a 0');
-  assert.equal(ana.state.pot, 0);
+  await obs.until((x) => x.phase === 'playing', 'revancha');
+  assert.ok(obs.state.players.every((p) => p.score === 0), 'la revancha arranca 0 a 0');
+  assert.equal(obs.state.pot, 0);
   ok('la revancha resetea el marcador');
 
   for (const c of [ana, beto, caro, revived]) c.close();

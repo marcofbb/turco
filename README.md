@@ -127,8 +127,15 @@ uno se desconecta, el otro puede seguir sin esperarlo.
 
 Cada sala genera un **segundo código** para poner la partida en una pantalla grande.
 
-Con ese código se ve la mesa, quién está jugando y los puntajes — pero **nunca las
-manos**, ni siquiera si alguien dio permiso. Pueden entrar varias teles a la vez.
+Con ese código se ve la mesa, quién está jugando y los puntajes. De entrada **no ve
+ninguna mano**, pero puede pedirle permiso a cada jugador: el que acepta le muestra sus
+cartas **por el resto de la partida**. Cada uno decide sobre las suyas.
+
+> [!CAUTION]
+> El código de tele es compartible y admite varias pantallas a la vez, **todas
+> comparten el mismo permiso**. Una vez que alguien deja ver sus cartas, cualquiera que
+> tenga ese código las ve, y el permiso no se puede revocar durante la partida. Repartilo
+> con el mismo cuidado con el que mostrarías tus cartas.
 
 ### Ganar
 

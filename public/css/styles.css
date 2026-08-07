@@ -587,3 +587,9 @@ input::placeholder { color: rgba(157, 179, 168, .55); }
   border: 1px solid var(--line); color: var(--ink-dim);
 }
 .ready-mark.is-ready { border-color: rgba(74, 222, 128, .5); color: #b6f3cd; background: rgba(74, 222, 128, .12); }
+
+.peek-ask__sep { height: 1px; background: var(--line); margin: 2px 0; }
+.peek-ask__warn {
+  display: block; margin-top: 3px;
+  font-size: 10.5px; color: #ffcf8a; letter-spacing: .02em;
+}

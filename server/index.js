@@ -22,6 +22,8 @@ import {
   handleRematch,
   setMic,
   relaySignal,
+  tvPeekRequest,
+  tvPeekAnswer,
   newPlayerId,
 } from './rooms.js';
 
@@ -188,6 +190,25 @@ attachWebSocket(server, (ws) => {
         if (!room || !playerId) return;
         // Sin broadcast: la señalización es punto a punto.
         relaySignal(room, playerId, msg.to, msg.data);
+        return;
+      }
+
+      // ── permiso de la tele para ver manos (permanente, uno por jugador)
+      case 'tvpeek': {
+        if (!isTv) return fail('Sólo la tele pide este permiso.');
+        if (!room) return fail('No estás en una sala.');
+        const result = tvPeekRequest(room, msg.seat);
+        if (result.error) return fail(result.error);
+        broadcast(room);
+        return;
+      }
+
+      case 'tvpeek-answer': {
+        if (isTv) return fail('La tele no contesta por vos.');
+        if (!room || !playerId) return fail('No estás en una sala.');
+        const result = tvPeekAnswer(room, playerId, msg.yes);
+        if (result.error) return fail(result.error);
+        broadcast(room);
         return;
       }
 

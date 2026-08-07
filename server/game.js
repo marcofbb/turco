@@ -649,14 +649,15 @@ export function advance(match, playerId = null, connected = null) {
  * Resultado de la ronda tal como lo puede ver este jugador.
  * Se combina lo que el pacto destapa con lo que ya tenía permiso de ver.
  */
-function outcomeFor(match, playerId, isTv) {
+function outcomeFor(match, playerId, isTv, tvPeek = new Set()) {
   const o = match.lastOutcome;
   if (!o) return null;
 
   const seatIdx = o.seats.indexOf(playerId);
   const wasSpectator = !isTv && o.spectator === playerId;
   const granted = o.peekGranted ?? [false, false];
-  const sawSeat = (i) => !isTv && (i === seatIdx || (wasSpectator && granted[i]));
+  const sawSeat = (i) =>
+    isTv ? tvPeek.has(o.seats[i]) : i === seatIdx || (wasSpectator && granted[i]);
 
   // Mano completa si ya la podía ver; si no, sólo lo que el pacto destapa.
   const hands = o.revealedHands.map((revealed, i) => (sawSeat(i) ? o.hands[i] : revealed));
@@ -679,10 +680,13 @@ function outcomeFor(match, playerId, isTv) {
 
 /**
  * @param {string|null} playerId
- * @param {{tv?: boolean}} opts  modo TV: pantalla pública, nunca ve manos.
+ * @param {{tv?: boolean, tvPeek?: Set<string>}} opts
+ *   modo TV: pantalla pública. Sólo ve la mano de quien le dio permiso, y ese
+ *   permiso lo otorga cada jugador por separado y dura toda la partida.
  */
 export function viewFor(match, playerId, opts = {}) {
   const isTv = opts.tv === true;
+  const tvPeek = opts.tvPeek ?? new Set();
   const me = playerById(match, playerId);
   const seatIdx = isTv ? -1 : match.seats.indexOf(playerId);
   const isSpectator = seatIdx === -1;
@@ -709,16 +713,16 @@ export function viewFor(match, playerId, opts = {}) {
     nextReady: match.nextReady ?? [],
     outcome:
       match.phase === 'roundEnd' || match.phase === 'gameEnd'
-        ? outcomeFor(match, playerId, isTv)
+        ? outcomeFor(match, playerId, isTv, tvPeek)
         : null,
   };
 
   if (!round) return { ...base, round: null };
 
-  // Cada uno ve su mano. Quien mira ve sólo las que le dieron permiso.
-  // La tele no ve ninguna: es pantalla pública.
+  // Cada uno ve su mano. Quien mira ve sólo las que le dieron permiso en esta
+  // ronda; la tele, sólo las que le habilitaron para toda la partida.
   const sees = (i) => {
-    if (isTv) return false;
+    if (isTv) return tvPeek.has(match.seats[i]);
     if (i === seatIdx) return true;
     return isSpectator && round.peek.granted[i];
   };

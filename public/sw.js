@@ -1,7 +1,7 @@
 // Service worker de Turco: cachea el shell para que abra al instante e instale como app.
 // El juego en sí va por WebSocket, así que nunca se cachea estado de partida.
 
-const CACHE = 'turco-v6';
+const CACHE = 'turco-v7';
 const SHELL = [
   '/',
   '/index.html',

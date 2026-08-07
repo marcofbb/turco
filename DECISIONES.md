@@ -61,7 +61,12 @@ Acá sí se eligió entre alternativas razonables. Todas son discutibles:
 7. **El permiso para mirar dura sólo esa ronda**, y un "no" bloquea volver a pedir en esa
    misma ronda (para que no se pueda insistir).
 8. **Pedir y dar permiso no consume turno**: va por fuera de la mano.
-9. **La tele nunca ve manos**, ni aunque un jugador haya dado permiso.
+9. ~~**La tele nunca ve manos**, ni aunque un jugador haya dado permiso.~~
+   **Revertido.** Ahora la tele puede pedir permiso a cada jugador por separado, y el que
+   acepta le muestra sus cartas por el resto de la partida (vive en la sala, así que
+   sobrevive a las revanchas). Un "no" se puede reintentar en la ronda siguiente.
+   *Consecuencia asumida:* el código de tele pasa a ser una llave de "ver esas manos" que
+   no caduca ni se puede revocar, y la comparten todas las pantallas conectadas.
 10. **"Mostrar tantos" es mecánicamente idéntico a irse al mazo** (le regala el truco al
     rival al valor actual), sólo que el envido se resuelve por tanto.
 

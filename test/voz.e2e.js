@@ -85,6 +85,84 @@ const run = async () => {
   assert.equal(tv.rtc.length, 0, 'la tele nunca recibe señalización');
   ok('la tele nunca recibe señalización');
 
+  // ── permiso de la tele para ver manos
+  await a.until(s => s.phase === 'draw');
+  a.send({ type:'next' });
+  await Promise.all([a,b,c,tv].map(x => x.until(s => s.phase === 'playing')));
+  await settle();
+
+  const sillas = a.state.seats;
+  const porId = { 'v-a':a, 'v-b':b, 'v-c':c };
+  const s0 = porId[sillas[0]], s1 = porId[sillas[1]];
+
+  assert.ok(tv.state.round.hands.every(h => h.every(x => x.hidden)), 'la tele arranca sin ver nada');
+  ok('la tele no ve ninguna mano al empezar');
+
+  tv.errors.length = 0;
+  tv.send({ type:'tvpeek', seat: 0 });
+  await s0.until(st => (st.tvPeek?.requested ?? []).includes(sillas[0]));
+  await settle();
+  assert.ok(tv.state.round.hands.every(h => h.every(x => x.hidden)), 'pedir no alcanza');
+  ok('pedir permiso no destapa nada por sí solo');
+
+  s0.send({ type:'tvpeek-answer', yes: true });
+  await tv.until(st => (st.tvPeek?.granted ?? []).includes(sillas[0]));
+  await settle();
+  assert.ok(tv.state.round.hands[0].every(x => x.card), 'ahora ve esa mano');
+  assert.ok(tv.state.round.hands[1].every(x => x.hidden), 'la otra no');
+  ok('con el sí, la tele ve sólo esa mano');
+
+  // El otro dice que no
+  tv.send({ type:'tvpeek', seat: 1 });
+  await s1.until(st => (st.tvPeek?.requested ?? []).includes(sillas[1]));
+  s1.send({ type:'tvpeek-answer', yes: false });
+  await settle(300);
+  assert.ok(tv.state.round.hands[1].every(x => x.hidden), 'sigue tapada tras el no');
+  ok('si le dicen que no, la tele no ve esa mano');
+
+  // Un jugador no puede contestar por el otro
+  s1.errors.length = 0;
+  s1.send({ type:'tvpeek-answer', yes: true });
+  await settle(250);
+  assert.ok(s1.errors.some(e => /no te pidió/i.test(e)), 'no hay pedido pendiente para él');
+  ok('nadie contesta por otro');
+
+  // La tele no puede contestarse a sí misma
+  tv.errors.length = 0;
+  tv.send({ type:'tvpeek-answer', yes: true });
+  await settle(250);
+  assert.ok(tv.errors.some(e => /no contesta/i.test(e)));
+  ok('la tele no puede autorizarse sola');
+
+  // ── el permiso sobrevive a la ronda
+  const antesDeRonda = sillas[0];
+  // Cerramos la ronda: el que tiene el turno se va al mazo.
+  const deTurno = porId[a.state.seats[a.state.round.acting]];
+  deTurno.send({ type:'action', action:{ type:'MAZO' } });
+  await tv.until(st => st.phase === 'roundEnd');
+  await settle();
+  const listos = tv.state.outcome.seats;
+  porId[listos[0]].send({ type:'next' });
+  porId[listos[1]].send({ type:'next' });
+  await tv.until(st => st.phase === 'playing', 6000);
+  await settle(300);
+  // La garantía de "para siempre": el permiso sigue registrado pase lo que pase.
+  assert.ok((tv.state.tvPeek?.granted ?? []).includes(antesDeRonda),
+    'el permiso tiene que sobrevivir al cambio de ronda');
+
+  const sillaAhora = tv.state.seats.indexOf(antesDeRonda);
+  if (sillaAhora !== -1) {
+    assert.ok(tv.state.round.hands[sillaAhora].every(x => x.card),
+      'y si sigue en la mesa, la tele ve su mano nueva');
+  }
+  // El que NO dio permiso sigue tapado, esté donde esté.
+  for (const [i, id] of tv.state.seats.entries()) {
+    if (id === antesDeRonda) continue;
+    assert.ok(tv.state.round.hands[i].every(x => x.hidden),
+      'sólo se ve la mano de quien dio permiso');
+  }
+  ok(`el permiso de la tele dura toda la partida${sillaAhora !== -1 ? ' (verificado en la mesa)' : ''}`);
+
   // ── al desconectarse, el micrófono queda cerrado
   a.close();
   await b.until(s => s.voice['v-a'] === false || s.members.every(m => m.id !== 'v-a'));

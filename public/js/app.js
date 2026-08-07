@@ -574,11 +574,8 @@ function renderActions() {
 
   if (!r || view.phase !== 'playing') { bar.innerHTML = ''; return; }
 
-  // La tele es pantalla pública: nunca tiene botones.
-  if (view.you.isTv) {
-    bar.innerHTML = '<div class="actionbar__wait">📺 Modo tele · sólo se ve lo que está sobre la mesa</div>';
-    return;
-  }
+  // La tele sólo puede pedir permiso para ver manos.
+  if (view.you.isTv) { renderTvBar(bar, r); return; }
 
   if (view.you.isSpectator) { renderSpectatorBar(bar, r); return; }
 
@@ -660,6 +657,30 @@ function renderActions() {
   bar.innerHTML = `${hint}<div class="actionbar__row">${row.join('')}</div>${tantosRow}`;
 }
 
+/** Barra de la tele: pedirle a cada jugador que la deje ver sus cartas. */
+function renderTvBar(bar, r) {
+  const pedidos = view.tvPeek?.requested ?? [];
+  const dados = view.tvPeek?.granted ?? [];
+
+  const botones = [0, 1].map((seat) => {
+    const id = view.seats[seat];
+    const quien = escapeHtml(playerName(id));
+    if (dados.includes(id)) return `<button class="btn btn--ok" disabled>${quien}: ves sus cartas</button>`;
+    if (pedidos.includes(id)) return `<button class="btn" disabled>${quien}: esperando…</button>`;
+    return `<button class="btn btn--ghost" data-tvpeek="${seat}">Pedirle a ${quien}</button>`;
+  });
+
+  const cuantas = dados.length;
+  bar.innerHTML = `
+    <div class="actionbar__prompt muted" style="font-size:12px">
+      📺 Modo tele · ${
+        cuantas === 2 ? 'te dejaron ver las dos manos'
+          : cuantas === 1 ? 'te dejaron ver una mano'
+          : 'sólo se ve lo que está sobre la mesa'}
+    </div>
+    <div class="actionbar__row">${botones.join('')}</div>`;
+}
+
 /**
  * Pedido de permiso al costado de la mesa: así no tapa los botones de jugar,
  * que siguen usables porque contestar no consume el turno.
@@ -668,14 +689,31 @@ function renderPeekAsk(r) {
   const el = $('#peek-ask');
   if (!el) return;
   const yo = view.you.seatIdx;
-  if (view.you.isTv || yo === -1 || !r.peek?.requested[yo]) { el.hidden = true; return; }
+  if (view.you.isTv || yo === -1) { el.hidden = true; return; }
 
-  el.innerHTML = `
-    <div class="peek-ask__txt"><b>${escapeHtml(playerName(view.spectator))}</b> quiere ver tus cartas</div>
-    <div class="peek-ask__row">
-      <button class="btn btn--ok" data-act="PEEK_YES">Sí</button>
-      <button class="btn btn--danger" data-act="PEEK_NO">No</button>
-    </div>`;
+  const bloques = [];
+
+  if (r.peek?.requested[yo]) {
+    bloques.push(`
+      <div class="peek-ask__txt"><b>${escapeHtml(playerName(view.spectator))}</b> quiere ver tus cartas</div>
+      <div class="peek-ask__row">
+        <button class="btn btn--ok" data-act="PEEK_YES">Sí</button>
+        <button class="btn btn--danger" data-act="PEEK_NO">No</button>
+      </div>`);
+  }
+
+  if ((view.tvPeek?.requested ?? []).includes(view.you.id)) {
+    bloques.push(`
+      <div class="peek-ask__txt">📺 <b>La tele</b> quiere ver tus cartas
+        <span class="peek-ask__warn">Es para toda la partida</span></div>
+      <div class="peek-ask__row">
+        <button class="btn btn--ok" data-tvanswer="1">Sí</button>
+        <button class="btn btn--danger" data-tvanswer="0">No</button>
+      </div>`);
+  }
+
+  if (!bloques.length) { el.hidden = true; return; }
+  el.innerHTML = bloques.join('<div class="peek-ask__sep"></div>');
   el.hidden = false;
 }
 
@@ -884,6 +922,18 @@ document.addEventListener('click', (ev) => {
   const playEl = ev.target.closest('[data-play]');
   if (playEl && !playEl.closest('.hand--locked')) {
     send({ type: 'action', action: { type: 'PLAY', cardIndex: Number(playEl.dataset.play) } });
+    return;
+  }
+
+  const tvPeekEl = ev.target.closest('[data-tvpeek]');
+  if (tvPeekEl) {
+    send({ type: 'tvpeek', seat: Number(tvPeekEl.dataset.tvpeek) });
+    return;
+  }
+
+  const tvAnswerEl = ev.target.closest('[data-tvanswer]');
+  if (tvAnswerEl) {
+    send({ type: 'tvpeek-answer', yes: tvAnswerEl.dataset.tvanswer === '1' });
     return;
   }
 

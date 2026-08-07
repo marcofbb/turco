@@ -27,6 +27,9 @@ function createRoom(code) {
     tvCode: makeCode(), // segundo código: entra en modo tele, sin ver manos
     members: [], // {id, name, socket|null, connected}
     viewers: new Set(), // pantallas en modo tele
+    // Permiso de la tele para ver manos. Lo da cada jugador por separado y dura
+    // toda la partida (por eso vive en la sala y no en el match).
+    tvPeek: { requested: new Set(), granted: new Set(), deniedAt: new Map() },
     match: null,
     createdAt: Date.now(),
     touchedAt: Date.now(),
@@ -138,11 +141,15 @@ export function roomState(room, playerId, opts = {}) {
     return { ...lobby, phase: 'lobby', needed: 3 - room.members.length };
   }
 
-  const view = viewFor(room.match, playerId, { tv: isTv });
+  const view = viewFor(room.match, playerId, { tv: isTv, tvPeek: room.tvPeek.granted });
   return {
     ...lobby,
     ...view,
     you: { ...view.you, isTv },
+    tvPeek: {
+      requested: [...room.tvPeek.requested],
+      granted: [...room.tvPeek.granted],
+    },
     connected: Object.fromEntries(room.members.map((m) => [m.id, m.connected])),
   };
 }
@@ -154,6 +161,32 @@ export function broadcast(room) {
   for (const socket of room.viewers) {
     socket.send(roomState(room, null, { tv: true }));
   }
+}
+
+/** La tele pide ver la mano de una silla. */
+export function tvPeekRequest(room, seat) {
+  if (!room.match) return { error: 'Todavía no empezó la partida.' };
+  if (seat !== 0 && seat !== 1) return { error: 'Esa silla no existe.' };
+  const playerId = room.match.seats[seat];
+  const tp = room.tvPeek;
+  if (tp.granted.has(playerId)) return { error: 'Ya te dejó ver sus cartas.' };
+  if (tp.requested.has(playerId)) return { error: 'Ya se lo pediste: falta que conteste.' };
+  // Un "no" bloquea sólo hasta la ronda siguiente, para que se pueda reintentar.
+  if (tp.deniedAt.get(playerId) === room.match.roundNo) {
+    return { error: 'Te dijo que no. Probá en la próxima ronda.' };
+  }
+  tp.requested.add(playerId);
+  return { ok: true };
+}
+
+/** El jugador contesta a la tele. El sí vale para toda la partida. */
+export function tvPeekAnswer(room, playerId, yes) {
+  const tp = room.tvPeek;
+  if (!tp.requested.has(playerId)) return { error: 'La tele no te pidió nada.' };
+  tp.requested.delete(playerId);
+  if (yes) tp.granted.add(playerId);
+  else tp.deniedAt.set(playerId, room.match?.roundNo ?? 0);
+  return { ok: true };
 }
 
 /** Marca si un jugador abrió o cerró su micrófono. */
