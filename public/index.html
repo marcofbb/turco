@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Turco</title>
+<meta name="description" content="Turco: truco argentino de a tres. Dos juegan, uno mira.">
+<meta name="theme-color" content="#0a2a20">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Turco">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<!-- ───────────────────────────── inicio ───────────────────────────── -->
+<section id="screen-home" class="screen is-active">
+  <div class="home">
+    <header class="home__brand">
+      <div class="brand-mark" aria-hidden="true">
+        <span class="brand-card brand-card--a"></span>
+        <span class="brand-card brand-card--b"></span>
+      </div>
+      <h1>Turco</h1>
+      <p>Truco de a tres. Dos juegan, uno mira.</p>
+    </header>
+
+    <div class="field">
+      <label for="input-name">Tu nombre</label>
+      <input id="input-name" type="text" maxlength="14" autocomplete="nickname"
+             placeholder="Cómo te ven los demás" enterkeyhint="done">
+    </div>
+
+    <button id="btn-create" class="btn btn--primary btn--lg">Crear sala</button>
+
+    <div class="or"><span>o entrá a una</span></div>
+
+    <div class="join-row">
+      <input id="input-code" type="text" maxlength="4" inputmode="latin"
+             autocapitalize="characters" autocomplete="off" spellcheck="false"
+             placeholder="CÓDIGO" enterkeyhint="go">
+      <button id="btn-join" class="btn btn--ghost">Entrar</button>
+    </div>
+
+    <button id="btn-rules-home" class="linkish">¿Cómo se juega al Turco?</button>
+    <p id="home-error" class="error" hidden></p>
+  </div>
+</section>
+
+<!-- ───────────────────────────── sala de espera ───────────────────────────── -->
+<section id="screen-lobby" class="screen">
+  <div class="lobby">
+    <p class="lobby__label">Código de la sala</p>
+    <div id="lobby-code" class="lobby__code">····</div>
+    <button id="btn-share" class="btn btn--ghost">Compartir invitación</button>
+
+    <ul id="lobby-members" class="lobby__members"></ul>
+    <p id="lobby-status" class="lobby__status">Esperando jugadores…</p>
+
+    <div class="tvbox">
+      <span class="tvbox__label">📺 Para la tele</span>
+      <span id="lobby-tvcode" class="tvbox__code">····</span>
+      <span class="tvbox__hint">Con este código se ve la mesa y el marcador, nunca las manos.</span>
+    </div>
+
+    <button id="btn-leave" class="linkish">Salir</button>
+  </div>
+</section>
+
+<!-- ───────────────────────────── mesa ───────────────────────────── -->
+<section id="screen-game" class="screen">
+
+  <header id="scoreboard" class="scoreboard"></header>
+
+  <div class="table">
+    <div id="seat-top" class="seat seat--top"></div>
+
+    <div class="table__center">
+      <div id="stakes" class="stakes"></div>
+      <div id="tricks" class="tricks"></div>
+      <div id="table-msg" class="table-msg"></div>
+    </div>
+
+    <div id="seat-bottom" class="seat seat--bottom"></div>
+  </div>
+
+  <footer id="actionbar" class="actionbar"></footer>
+
+  <div class="fabs">
+    <button id="btn-sound" class="fab" aria-label="Cambiar sonido">🔊</button>
+    <button id="btn-rules-game" class="fab" aria-label="Ver reglas">?</button>
+  </div>
+</section>
+
+<!-- ───────────────────────────── sorteo inicial ───────────────────────────── -->
+<div id="modal-draw" class="modal" hidden>
+  <div class="sheet">
+    <div id="draw-body"></div>
+    <button id="btn-start" class="btn btn--primary btn--lg">Empezar</button>
+  </div>
+</div>
+
+<!-- ───────────────────────────── fin de ronda ───────────────────────────── -->
+<div id="modal-round" class="modal" hidden>
+  <div class="sheet">
+    <div id="round-body"></div>
+    <button id="btn-next" class="btn btn--primary btn--lg">Siguiente ronda</button>
+  </div>
+</div>
+
+<!-- ───────────────────────────── fin de partida ───────────────────────────── -->
+<div id="modal-game" class="modal" hidden>
+  <div class="sheet sheet--center">
+    <div id="game-body"></div>
+    <button id="btn-rematch" class="btn btn--primary btn--lg">Revancha</button>
+  </div>
+</div>
+
+<!-- ───────────────────────────── reglas ───────────────────────────── -->
+<div id="modal-rules" class="modal" hidden>
+  <div class="sheet sheet--scroll">
+    <h2>Turco</h2>
+    <p class="muted">Es truco argentino con cartas españolas, sin flor, pero de a tres.</p>
+
+    <h3>La mesa</h3>
+    <ul>
+      <li>Al abrir la sala se da <strong>una carta a cada uno</strong>: juegan las dos más altas y la más baja mira. Si hay empate se vuelve a dar.</li>
+      <li>Juegan dos; el tercero <strong>mira las dos manos</strong>.</li>
+      <li>El que gana se queda y entra el que estaba mirando. El que pierde pasa a mirar.</li>
+      <li>El ganador arranca siendo <strong>mano</strong>.</li>
+    </ul>
+
+    <h3>Pacto</h3>
+    <ul>
+      <li>Al terminar la ronda <strong>no se muestra la mano</strong>: sólo lo que quedó sobre la mesa.</li>
+      <li>Si el envido fue querido, se muestran además <strong>las cartas que forman el tanto</strong>.</li>
+      <li>Si no se jugó ninguna carta ni se quiso el envido, no se ve nada: eso es <strong>pacto</strong>.</li>
+    </ul>
+
+    <h3>El que mira</h3>
+    <ul>
+      <li>De entrada <strong>no ve ninguna mano</strong>: sólo lo que está sobre la mesa.</li>
+      <li>Puede <strong>pedirle permiso</strong> a cada jugador para ver sus cartas. El dueño decide.</li>
+      <li>El permiso vale <strong>sólo por esa ronda</strong>.</li>
+    </ul>
+
+    <h3>Modo tele</h3>
+    <ul>
+      <li>Cada sala genera un <strong>segundo código</strong> para poner el juego en una pantalla grande.</li>
+      <li>La tele muestra la mesa, quién juega y los puntajes. <strong>Nunca ve las manos</strong>, ni siquiera con permiso.</li>
+      <li>Pueden entrar varias teles a la vez.</li>
+    </ul>
+
+    <h3>El envido es a ciegas</h3>
+    <ul>
+      <li>Cantás envido sin decir el tanto. Se responde quiero o no quiero sin saber.</li>
+      <li>Los tantos se revelan <strong>recién al terminar la ronda</strong>.</li>
+      <li>Falta Envido vale <strong>4</strong>. Envido 2 · Envido Envido 4 · Real Envido 3 · Envido + Real 5.</li>
+      <li>Si el envido se quiso, cualquiera de los dos puede <strong>mostrar los tantos</strong> y cortar ahí:
+          le regala el truco al otro y la ronda se define por el envido.</li>
+    </ul>
+
+    <h3>Quién gana la ronda</h3>
+    <ul>
+      <li>Se suman los puntos de la ronda (envido + truco). <strong>El que más suma, gana</strong>.</li>
+      <li>Ganar la ronda vale <strong>1 punto</strong> en la general.</li>
+    </ul>
+
+    <h3>El pozo</h3>
+    <ul>
+      <li>Si empatan en puntos, se vuelve a dar <strong>entre esos mismos dos</strong> y queda 1 punto en el pozo.</li>
+      <li>Cada empate suma 1 al pozo, hasta un máximo de <strong>5</strong>.</li>
+      <li>El que corta la racha se lleva todo el pozo. En las redadas la mano alterna.</li>
+    </ul>
+
+    <h3>Ganar</h3>
+    <ul>
+      <li>Primero a <strong>15 puntos</strong>.</li>
+      <li>Si llegás a 15 <strong>sin haber perdido nunca</strong> una ronda, te llevás el trofeo <strong>MAGISTRAL</strong> 🏆.</li>
+    </ul>
+
+    <button id="btn-close-rules" class="btn btn--ghost btn--lg">Cerrar</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="conn" class="conn" hidden>Reconectando…</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

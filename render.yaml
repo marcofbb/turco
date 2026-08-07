@@ -1,0 +1,14 @@
+# Deploy en Render. En render.com: New → Blueprint → conectá este repo.
+# El plan gratis soporta WebSockets, que es lo que Turco necesita.
+services:
+  - type: web
+    name: turco
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
