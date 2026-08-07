@@ -124,7 +124,10 @@ Turco necesita un host que ejecute Node y soporte WebSockets. **GitHub Pages no 
 
 ### Render (gratis)
 
-El repo ya trae [`render.yaml`](render.yaml):
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/marcofbb/turco)
+
+El repo ya trae [`render.yaml`](render.yaml), así que el botón de arriba alcanza. A mano
+es igual de rápido:
 
 1. Entrá a [render.com](https://render.com) y conectá tu cuenta de GitHub.
 2. **New → Blueprint** y elegí este repositorio.
