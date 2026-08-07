@@ -35,8 +35,12 @@ export const sound = {
     voiceEnabled = next.id === 'full';
     localStorage.setItem(KEY, enabled ? 'on' : 'off');
     localStorage.setItem(VOICE_KEY, voiceEnabled ? 'on' : 'off');
-    if (!enabled) stopVoice();
-    else { unlock(); play('turn'); }
+    if (!enabled) { stopVoice(); return next; }
+    unlock();
+    // Al activar la voz cantamos algo de verdad: si no se escucha, ya sabés que
+    // el problema es del navegador y no del juego.
+    if (voiceEnabled) { play('TRUCO'); say('TRUCO'); }
+    else play('turn');
     return next;
   },
 
@@ -59,6 +63,29 @@ export function unlock() {
     master.connect(ctx.destination);
     unlocked = true;
   } catch { /* sin audio, el juego sigue igual */ }
+}
+
+/**
+ * Desbloquea la voz. iOS sólo deja hablar si la primera utterance sale dentro de
+ * un gesto del usuario; después de eso, el resto de la sesión funciona sola.
+ * Sin esto no se escucha ningún canto del rival, porque llega por WebSocket y
+ * ahí ya no hay gesto que valga.
+ *
+ * Ojo: sólo se puede llamar desde un handler de gesto real. La bandera se marca
+ * recién cuando la utterance efectivamente sonó, así un intento bloqueado no
+ * impide reintentar en el próximo toque.
+ */
+let voicePrimed = false;
+function primeVoice() {
+  if (voicePrimed) return;
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    u.onend = () => { voicePrimed = true; };
+    synth.speak(u);
+  } catch { /* la voz es opcional */ }
 }
 
 function ready() {
@@ -291,8 +318,18 @@ function stopVoice() {
 export function say(kind) {
   if (!enabled || !voiceEnabled) return;
   const text = SPOKEN[kind];
-  if (!text || !window.speechSynthesis) return;
+  const synth = window.speechSynthesis;
+  if (!text || !synth) return;
+
   try {
+    // Chrome deja la síntesis en pausa después de un rato de inactividad.
+    if (synth.paused) synth.resume();
+
+    // Sólo cortamos si de verdad hay algo sonando: cancel() sobre una cola vacía
+    // deja a Chrome en un estado en el que se come la utterance siguiente.
+    const busy = synth.speaking || synth.pending;
+    if (busy) synth.cancel();
+
     const u = new SpeechSynthesisUtterance(text);
     const v = pickVoice();
     if (v) u.voice = v;
@@ -300,12 +337,22 @@ export function say(kind) {
     u.rate = 1.08;
     u.pitch = 1.0;
     u.volume = 0.9;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+
+    // cancel() y speak() en el mismo tick se pisan en Chrome: le damos un tick.
+    if (busy) setTimeout(() => { try { synth.speak(u); } catch { /* noop */ } }, 0);
+    else synth.speak(u);
   } catch { /* la voz es opcional */ }
 }
 
-// Primer toque en cualquier lado: habilita el audio.
-for (const ev of ['pointerdown', 'touchstart', 'keydown']) {
-  window.addEventListener(ev, () => unlock(), { once: true, passive: true });
+// Cualquier toque habilita el audio y desbloquea la voz.
+// No usamos { once: true }: en iOS el primer intento puede no prender, así que
+// seguimos probando en cada gesto hasta que la voz suene de verdad.
+const GESTURES = ['pointerdown', 'touchstart', 'keydown'];
+function onGesture() {
+  unlock();
+  primeVoice();
+  if (unlocked && voicePrimed) {
+    for (const ev of GESTURES) window.removeEventListener(ev, onGesture);
+  }
 }
+for (const ev of GESTURES) window.addEventListener(ev, onGesture, { passive: true });
