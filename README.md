@@ -194,12 +194,19 @@ cache primero: nunca cambian.
 ```bash
 npm test          # motor de reglas, sin servidor
 npm run test:e2e  # end-to-end (necesita el servidor corriendo)
+npm run balance   # simula partidas y mide el balance del juego
 ```
 
 96 pruebas en total. Las del motor incluyen 200 partidas completas jugadas al azar,
 verificando en cada cierre de ronda que no se filtre ninguna carta que no corresponda.
 
 ---
+
+## Decisiones de diseño
+
+[`DECISIONES.md`](DECISIONES.md) guarda qué reglas se eligieron y por qué, las mediciones
+de balance del juego, y las mejoras pendientes con su fundamento. Léelo antes de tocar
+una regla.
 
 ## Licencia
 
